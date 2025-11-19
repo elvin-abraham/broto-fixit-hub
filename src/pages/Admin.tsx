@@ -56,13 +56,22 @@ const Admin = () => {
     }
     setUser(session.user);
     
+    // Get user profile data
     const { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", session.user.id)
       .single();
-    
-    if (profileData?.role !== 'admin') {
+
+    // Check admin role in user_roles table
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (!roleData) {
       toast({
         variant: "destructive",
         title: "Access Denied",
@@ -71,7 +80,7 @@ const Admin = () => {
       navigate("/");
       return;
     }
-    
+
     setProfile(profileData);
     await loadComplaints();
     setLoading(false);
