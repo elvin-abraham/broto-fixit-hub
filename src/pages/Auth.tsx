@@ -26,12 +26,27 @@ const Auth = () => {
   });
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Check if user has admin role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      // Redirect based on role
+      if (roleData) {
+        navigate("/admin");
+      } else {
         navigate("/complaints");
       }
-    });
+    };
+
+    checkSession();
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -39,18 +54,32 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: loginData.email,
         password: loginData.password,
       });
 
       if (error) throw error;
 
+      // Check if user has admin role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
       toast({
         title: "Success!",
         description: "Logged in successfully",
       });
-      navigate("/complaints");
+
+      // Redirect based on role
+      if (roleData) {
+        navigate("/admin");
+      } else {
+        navigate("/complaints");
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -75,7 +104,7 @@ const Auth = () => {
             name: signupData.name,
             id_card_number: signupData.id_card_number,
           },
-          emailRedirectTo: `${window.location.origin}/complaints`,
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
 
